@@ -18,27 +18,45 @@
     <ClCompile Include="Ants.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="IDK\Keyboard.c">
+    <ClCompile Include="softdraw\image\image.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="IDK\Window.c">
+    <ClCompile Include="softdraw\input\input.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="IDK\WindowMgr.c">
+    <ClCompile Include="softdraw\input\win32_input.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="softdraw\timer\timer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="softdraw\timer\win32_timer.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="softdraw\window\win32_window.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="softdraw\window\window.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="IDK\Keyboard.h">
+    <ClInclude Include="softdraw\image\image.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IDK\Util.h">
+    <ClInclude Include="softdraw\input\input.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IDK\Window.h">
+    <ClInclude Include="softdraw\timer\timer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="IDK\WindowMgr.h">
+    <ClInclude Include="softdraw\window\window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="softdraw\softdraw.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="softdraw\util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
