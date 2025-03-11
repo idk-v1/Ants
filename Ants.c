@@ -151,8 +151,9 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 			colony->ants[i].pts[0].y >= win->height ||
 			colony->ants[i].pts[0].x < 0 ||
 			colony->ants[i].pts[0].y < 0) ||
-			getPixel(background, round(colony->ants[i].pts[0].x), 
-				round(colony->ants[i].pts[0].y)))
+			// small chance to ignore pixel and take a buried one
+			(getPixel(background, round(colony->ants[i].pts[0].x), 
+				round(colony->ants[i].pts[0].y)) && rand() % 10))
 		{
 			// set last position to stolen (2nd segment)
 			setPixel(background, round(colony->ants[i].pts[1].x),
@@ -230,9 +231,12 @@ int main()
 			background->width, background->height, 0, 0);
 
 		drawAnts(win, &colony);
+
+		sft_window_drawTextF(win, 0, 0, 4, 0xFFFF00FF, "%9llu", colony.count);
+
 		sft_window_display(win);
 
-		sft_sleep(10);
+		//sft_sleep(10);
 	}
 
 	sft_image_delete(background);
