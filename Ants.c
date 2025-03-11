@@ -15,7 +15,7 @@ typedef struct vec2f
 typedef struct Ant
 {
 	vec2f pts[ANT_SEGS];
-	uint32_t dir;
+	int32_t dir;
 } Ant;
 
 typedef struct Colony
@@ -86,6 +86,15 @@ static void updateAnts(sft_window* win, Colony* colony)
 			colony->ants[i].dir += 360;
 		if (colony->ants[i].dir >= 360)
 			colony->ants[i].dir -= 360;
+
+		// Ant made it to border
+		if (colony->ants[i].pts[0].x >= win->width - 1 ||
+			colony->ants[i].pts[0].y >= win->height - 1 ||
+			colony->ants[i].pts[0].x <= 0 ||
+			colony->ants[i].pts[0].y <= 0)
+		{
+			// TODO steal pixel
+		}
 	}
 }
 
@@ -115,7 +124,8 @@ int main()
 	sft_init();
 
 	sft_window* win = sft_window_open("", 0, 0, 0, 0,
-		sft_flag_fullscreen | sft_flag_passthru | sft_flag_syshide | sft_flag_topmost);
+		sft_flag_fullscreen | sft_flag_passthru | 
+		sft_flag_syshide | sft_flag_topmost);
 
 	Colony colony = createColony(win);
 	addAnt(&colony);
