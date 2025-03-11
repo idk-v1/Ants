@@ -28,6 +28,22 @@ typedef struct Colony
 	uint64_t maxAnts;
 } Colony;
 
+static void setPixel(sft_image* image, int64_t x, int64_t y, sft_color color)
+{
+	if (x < 0 || y < 0 || x >= image->width || y >= image->height)
+		return;
+
+	image->pixels[x + y * image->width] = color;
+}
+
+static sft_color getPixel(sft_image* image, int64_t x, int64_t y)
+{
+	if (x < 0 || y < 0 || x >= image->width || y >= image->height)
+		return 0x00000000;
+
+	return image->pixels[x + y * image->width];
+}
+
 static Colony createColony(sft_window* win)
 {
 	Colony colony;
@@ -101,7 +117,7 @@ static void addAnt(Colony* colony)
 	colony->count++;
 }
 
-static void updateAnts(sft_window* win, Colony* colony)
+static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 {
 	for (uint64_t i = 0; i < colony->numAnts; i++)
 	{
@@ -130,13 +146,22 @@ static void updateAnts(sft_window* win, Colony* colony)
 			colony->ants[i].dir -= 360;
 
 		// Ant made it to border
-		if (colony->ants[i].pts[0].x >= win->width - 1 ||
-			colony->ants[i].pts[0].y >= win->height - 1 ||
-			colony->ants[i].pts[0].x <= 0 ||
-			colony->ants[i].pts[0].y <= 0)
+		// or head is touching stolen pixel
+		if ((colony->ants[i].pts[0].x >= win->width ||
+			colony->ants[i].pts[0].y >= win->height ||
+			colony->ants[i].pts[0].x < 0 ||
+			colony->ants[i].pts[0].y < 0) ||
+			getPixel(background, round(colony->ants[i].pts[0].x), 
+				round(colony->ants[i].pts[0].y)))
 		{
-			// TODO steal pixel
+			// set last position to stolen (2nd segment)
+			setPixel(background, round(colony->ants[i].pts[1].x),
+				round(colony->ants[i].pts[1].y), 0xFF000000);
+
+			// reset ant and add another
 			deleteAnt(colony, i);
+			addAnt(colony);
+			addAnt(colony);
 		}
 	}
 }
@@ -176,6 +201,12 @@ int main()
 	sft_window* win = sft_window_open("", 0, 0, 0, 0,
 		sft_flag_fullscreen | sft_flag_passthru | 
 		sft_flag_syshide | sft_flag_topmost);
+	sft_window_fill(win, 0x00000000);
+	sft_window_display(win);
+
+
+	sft_image* background = sft_image_create(win->width, win->height);
+	sft_image_fill(background, 0x00000000);
 
 	Colony colony = createColony(win);
 	addAnt(&colony);
@@ -191,15 +222,20 @@ int main()
 		if (rand() % 100 == 0)
 			addAnt(&colony);
 		
-		updateAnts(win, &colony);
+		updateAnts(win, &colony, background);
 
-		sft_window_fill(win, 0x00000000);
+		// instead of clearing background, draw stolen pixels 
+		// bc i didn't add alpha blending, so it works
+		sft_window_drawImage(win, background, 0, 0, 
+			background->width, background->height, 0, 0);
+
 		drawAnts(win, &colony);
 		sft_window_display(win);
 
 		sft_sleep(10);
 	}
 
+	sft_image_delete(background);
 	deleteColony(&colony);
 	sft_window_close(win);
 
