@@ -28,6 +28,16 @@ typedef struct Colony
 	uint64_t maxAnts;
 } Colony;
 
+static bool pointInRect(float x, float y, float left, float top, float width, float height)
+{
+	return (x >= left && y >= top && x < width && y < height);
+}
+
+static bool pointInCircle(float x, float y, float cx, float cy, float radius)
+{
+	return (hypotf(x - cx, y - cy) < radius);
+}
+
 static void setPixel(sft_image* image, int64_t x, int64_t y, sft_color color)
 {
 	if (x < 0 || y < 0 || x >= image->width || y >= image->height)
@@ -119,6 +129,8 @@ static void addAnt(Colony* colony)
 
 static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 {
+	sft_point mouse = sft_input_mousePos(win);
+
 	for (uint64_t i = 0; i < colony->numAnts; i++)
 	{
 		if (colony->ants[i].deleted)
@@ -145,24 +157,29 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 		if (colony->ants[i].dir >= 360)
 			colony->ants[i].dir -= 360;
 
+		float antX = round(colony->ants[i].pts[0].x);
+		float antY = round(colony->ants[i].pts[0].y);
+
 		// Ant made it to border
 		// or head is touching stolen pixel
-		if ((colony->ants[i].pts[0].x >= win->width ||
-			colony->ants[i].pts[0].y >= win->height ||
-			colony->ants[i].pts[0].x < 0 ||
-			colony->ants[i].pts[0].y < 0) ||
+		if (!pointInRect(antX, antY, 0, 0, background->width, background->height) ||
 			// small chance to ignore pixel and take a buried one
-			(getPixel(background, round(colony->ants[i].pts[0].x), 
-				round(colony->ants[i].pts[0].y)) && rand() % 10))
+			(getPixel(background, antX, antY) && rand() % 10))
 		{
 			// set last position to stolen (2nd segment)
-			setPixel(background, round(colony->ants[i].pts[1].x),
-				round(colony->ants[i].pts[1].y), 0xFF000000);
+			setPixel(background, antX, antY, 0xFF000000);
 
 			// reset ant and add another
 			deleteAnt(colony, i);
 			addAnt(colony);
 			addAnt(colony);
+		}
+
+		// If clicking near ant, squish it
+		if (sft_input_clickState(sft_click_Left) && 
+			pointInCircle(antX, antY, mouse.x, mouse.y, 5.f))
+		{
+			deleteAnt(colony, i);
 		}
 	}
 }
@@ -185,17 +202,16 @@ static void drawAnts(sft_window* win, Colony* colony)
 		if (sft_input_keyState(sft_key_Capslock) && flash / 10 % 2)
 		{
 			for (uint64_t s = 0; s < ANT_SEGS; s++)
-				sft_window_drawRect(win, colony->ants[i].pts[s].x,
-					colony->ants[i].pts[s].y, 1, 1, 0xFFFF0000);
+				sft_window_drawRect(win, colony->ants[i].pts[s].x, colony->ants[i].pts[s].y, 1, 1, 0xFFFF0000);
 		}
 		else
 		{
-#endif
 			for (uint64_t s = 0; s < ANT_SEGS; s++)
-				sft_window_drawRect(win, colony->ants[i].pts[s].x,
-					colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
-#ifdef _DEBUG
+				sft_window_drawRect(win, colony->ants[i].pts[s].x, colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
 		}
+#else
+		for (uint64_t s = 0; s < ANT_SEGS; s++)
+			sft_window_drawRect(win, colony->ants[i].pts[s].x, colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
 #endif
 	}
 }
@@ -244,7 +260,12 @@ int main()
 		// debug bug counter
 #ifdef _DEBUG
 		if (sft_input_keyState(sft_key_Capslock))
+		{
 			sft_window_drawTextF(win, 0, 0, 4, 0xFFFF00FF, "%9llu", colony.count);
+
+			// debug squish radius display (actually a circle, just drawn as square)
+			sft_window_drawRect(win, sft_input_mousePos(win).x - 5, sft_input_mousePos(win).y - 5, 10, 10, 0xFFFF0000);
+		}
 #endif
 
 		sft_window_display(win);
