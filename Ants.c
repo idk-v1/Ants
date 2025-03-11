@@ -185,7 +185,7 @@ static void drawAnts(sft_window* win, Colony* colony)
 		{
 			if (sft_input_keyState(sft_key_Capslock))
 				sft_window_drawRect(win, colony->ants[i].pts[s].x,
-					colony->ants[i].pts[s].y, 5, 5, flash / 10 % 2 ? 0xFF000000 : 0xFFFF0000);
+					colony->ants[i].pts[s].y, 1, 1, flash / 10 % 2 ? 0xFF000000 : 0xFFFF0000);
 			else
 				sft_window_drawRect(win, colony->ants[i].pts[s].x,
 					colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
@@ -232,11 +232,13 @@ int main()
 
 		drawAnts(win, &colony);
 
-		sft_window_drawTextF(win, 0, 0, 4, 0xFFFF00FF, "%9llu", colony.count);
+		// debug bug counter
+		if (sft_input_keyState(sft_key_Capslock))
+			sft_window_drawTextF(win, 0, 0, 4, 0xFFFF00FF, "%9llu", colony.count);
 
 		sft_window_display(win);
 
-		//sft_sleep(10);
+		sft_sleep(10);
 	}
 
 	sft_image_delete(background);
