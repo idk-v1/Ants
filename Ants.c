@@ -181,6 +181,7 @@ static void drawAnts(sft_window* win, Colony* colony)
 		if (colony->ants[i].deleted)
 			continue;
 
+#ifdef _DEBUG
 		if (sft_input_keyState(sft_key_Capslock) && flash / 10 % 2)
 		{
 			for (uint64_t s = 0; s < ANT_SEGS; s++)
@@ -189,10 +190,13 @@ static void drawAnts(sft_window* win, Colony* colony)
 		}
 		else
 		{
+#endif
 			for (uint64_t s = 0; s < ANT_SEGS; s++)
 				sft_window_drawRect(win, colony->ants[i].pts[s].x,
 					colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
+#ifdef _DEBUG
 		}
+#endif
 	}
 }
 
@@ -219,8 +223,10 @@ int main()
 	{
 		sft_input_update();
 
+#ifdef _DEBUG
 		if (sft_input_keyPressed(sft_key_Escape))
 			break;
+#endif
 
 		// Randomly add an ant
 		if (rand() % 100 == 0)
@@ -236,8 +242,10 @@ int main()
 		drawAnts(win, &colony);
 
 		// debug bug counter
+#ifdef _DEBUG
 		if (sft_input_keyState(sft_key_Capslock))
 			sft_window_drawTextF(win, 0, 0, 4, 0xFFFF00FF, "%9llu", colony.count);
+#endif
 
 		sft_window_display(win);
 
