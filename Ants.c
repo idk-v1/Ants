@@ -15,8 +15,10 @@ typedef struct vec2f
 typedef struct Ant
 {
 	vec2f pts[ANT_SEGS];
+	vec2f target;
 	int32_t dir;
 	bool deleted;
+	bool hasTarget;
 } Ant;
 
 typedef struct Colony
@@ -124,6 +126,7 @@ static void addAnt(Colony* colony)
 		colony->ants[i].pts[s] = colony->pt;
 	colony->ants[i].dir = rand() % (360 / 5) * 5;
 	colony->ants[i].deleted = false;
+	colony->ants[i].hasTarget = false;
 	colony->count++;
 }
 
@@ -136,6 +139,22 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 		if (colony->ants[i].deleted)
 			continue;
 
+		// check if ant has a target or another ant took the target
+		if (!colony->ants[i].hasTarget ||
+			getPixel(background, colony->ants[i].target.x,
+			colony->ants[i].target.y) == 0xFF000000)
+		{
+			colony->ants[i].target.x = rand() % background->width;
+			colony->ants[i].target.y = rand() % background->height;
+
+			// check if target is taken
+			if (getPixel(background, colony->ants[i].target.x, 
+				colony->ants[i].target.y) == 0xFF000000)
+				continue; // chose one next time, otherwise infinite loop possible
+			else
+				colony->ants[i].hasTarget = true;
+		}
+
 		// move the last segment to the next segment,
 		// then the next segment to the next next segment, repeat
 		// the head is controlled by the direction
@@ -144,43 +163,43 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 		for (uint64_t s = ANT_SEGS - 1; s > 0; s--)
 			colony->ants[i].pts[s] = colony->ants[i].pts[s - 1];
 
-		colony->ants[i].pts[0].x += cosf(TO_RAD(colony->ants[i].dir));
-		colony->ants[i].pts[0].y += sinf(TO_RAD(colony->ants[i].dir));
+		float dir = atan2f(colony->ants[i].pts[0].x - colony->ants[i].target.x,
+			colony->ants[i].pts[0].y - colony->ants[i].target.y);
 
 		// chance to adjust direction
 		if (rand() % 10 == 0)
-			colony->ants[i].dir += (rand() % 2 ? -5 : 5);
+		{
+			// only allow adjustments that would stay in range
+			// TODO handle angle wrap around, they spin in circle
+			if (colony->ants[i].dir - 5 <= dir + 10)
+				colony->ants[i].dir -= 5;
+			else if (colony->ants[i].dir + 5 >= dir - 10)
+				colony->ants[i].dir += 5;
+		}
 
-		// wrap direction between 0 and 360
-		if (colony->ants[i].dir < 0)
-			colony->ants[i].dir += 360;
-		if (colony->ants[i].dir >= 360)
-			colony->ants[i].dir -= 360;
+		colony->ants[i].pts[0].x += cosf(TO_RAD(colony->ants[i].dir));
+		colony->ants[i].pts[0].y += sinf(TO_RAD(colony->ants[i].dir));
 
 		float antX = round(colony->ants[i].pts[0].x);
 		float antY = round(colony->ants[i].pts[0].y);
 
-		// Ant made it to border
-		// or head is touching stolen pixel
-		if (!pointInRect(antX, antY, 0, 0, background->width, background->height) ||
-			// small chance to ignore pixel and take a buried one
-			(getPixel(background, antX, antY) && rand() % 10))
+		// check if ant made it to target
+		if (antX == colony->ants[i].target.x && antY == colony->ants[i].target.y)
 		{
-			// set last position to stolen (2nd segment)
+			// set position to stolen
 			setPixel(background, antX, antY, 0xFF000000);
 
 			// reset ant and add another
 			deleteAnt(colony, i);
 			addAnt(colony);
 			addAnt(colony);
+			printf("Ant found target\n");
 		}
 
 		// If clicking near ant, squish it
 		if (sft_input_clickState(sft_click_Left) && 
 			pointInCircle(antX, antY, mouse.x, mouse.y, 5.f))
-		{
 			deleteAnt(colony, i);
-		}
 	}
 }
 
