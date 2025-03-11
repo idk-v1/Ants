@@ -181,12 +181,15 @@ static void drawAnts(sft_window* win, Colony* colony)
 		if (colony->ants[i].deleted)
 			continue;
 
-		for (uint64_t s = 0; s < ANT_SEGS; s++)
+		if (sft_input_keyState(sft_key_Capslock) && flash / 10 % 2)
 		{
-			if (sft_input_keyState(sft_key_Capslock))
+			for (uint64_t s = 0; s < ANT_SEGS; s++)
 				sft_window_drawRect(win, colony->ants[i].pts[s].x,
-					colony->ants[i].pts[s].y, 1, 1, flash / 10 % 2 ? 0xFF000000 : 0xFFFF0000);
-			else
+					colony->ants[i].pts[s].y, 1, 1, 0xFFFF0000);
+		}
+		else
+		{
+			for (uint64_t s = 0; s < ANT_SEGS; s++)
 				sft_window_drawRect(win, colony->ants[i].pts[s].x,
 					colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
 		}
