@@ -91,10 +91,21 @@ static void updateAnts(sft_window* win, Colony* colony)
 
 static void drawAnts(sft_window* win, Colony* colony)
 {
+	static int flash = 0;
+	flash++;
+
+	// debug (or just bug) thingy to make ants easier to see
+
 	for (uint64_t i = 0; i < colony->numAnts; i++)
 		for (uint64_t s = 0; s < ANT_SEGS; s++)
-			sft_window_drawRect(win, colony->ants[i].pts[s].x, 
-				colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
+		{
+			if (sft_input_keyState(sft_key_Capslock))
+				sft_window_drawRect(win, colony->ants[i].pts[s].x,
+					colony->ants[i].pts[s].y, 5, 5, flash / 10 % 2 ? 0xFF000000 : 0xFFFF0000);
+			else
+				sft_window_drawRect(win, colony->ants[i].pts[s].x,
+					colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
+		}
 }
 
 int main()
@@ -111,6 +122,11 @@ int main()
 
 	while (sft_window_update(win))
 	{
+		sft_input_update();
+
+		if (sft_input_keyPressed(sft_key_Escape))
+			break;
+
 		// Randomly add an ant
 		if (rand() % 100 == 0)
 			addAnt(&colony);
