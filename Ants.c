@@ -4,6 +4,7 @@
 #include <time.h>
 
 #define TO_RAD(deg) (deg / 180.f * 3.1415f)
+#define TO_DEG(rad) (rad / 3.1415f * 180.f)
 
 #define ANT_SEGS 3
 
@@ -16,7 +17,7 @@ typedef struct Ant
 {
 	vec2f pts[ANT_SEGS];
 	vec2f target;
-	int32_t dir;
+	float dir;
 	bool deleted;
 	bool hasTarget;
 } Ant;
@@ -136,23 +137,37 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 
 	for (uint64_t i = 0; i < colony->numAnts; i++)
 	{
-		if (colony->ants[i].deleted)
+		Ant* ant = &colony->ants[i];
+		if (ant->deleted)
 			continue;
 
 		// check if ant has a target or another ant took the target
-		if (!colony->ants[i].hasTarget ||
-			getPixel(background, colony->ants[i].target.x,
-			colony->ants[i].target.y) == 0xFF000000)
+		if (!ant->hasTarget ||
+			getPixel(background, ant->target.x, ant->target.y) == 0xFF000000)
 		{
-			colony->ants[i].target.x = rand() % background->width;
-			colony->ants[i].target.y = rand() % background->height;
+			ant->target.x = rand() % background->width;
+			ant->target.y = rand() % background->height;
 
 			// check if target is taken
-			if (getPixel(background, colony->ants[i].target.x, 
-				colony->ants[i].target.y) == 0xFF000000)
-				continue; // chose one next time, otherwise infinite loop possible
+			if (getPixel(background, ant->target.x, ant->target.y) != 0xFF000000 && (
+				// surrounding pixel was taken already
+				getPixel(background, ant->target.x + 1, ant->target.y) == 0xFF000000 ||
+				getPixel(background, ant->target.x, ant->target.y + 1) == 0xFF000000 ||
+				getPixel(background, ant->target.x - 1, ant->target.y) == 0xFF000000 ||
+				getPixel(background, ant->target.x, ant->target.y - 1) == 0xFF000000 ||
+				// or target is on edge
+				ant->target.x == 0 || 
+				ant->target.y == 0 ||
+				ant->target.x == background->width - 1 || 
+				ant->target.y == background->height - 1))
+			{
+				ant->hasTarget = true;
+				ant->dir = TO_DEG(atan2f(
+					ant->target.x - ant->pts[0].x,
+					ant->target.y - ant->pts[0].y));
+			}
 			else
-				colony->ants[i].hasTarget = true;
+				continue; // chose one next time, otherwise infinite loop possible
 		}
 
 		// move the last segment to the next segment,
@@ -161,44 +176,25 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 		// the other body segments follow the head, 
 		// justs delayed by an update
 		for (uint64_t s = ANT_SEGS - 1; s > 0; s--)
-			colony->ants[i].pts[s] = colony->ants[i].pts[s - 1];
+			ant->pts[s] = ant->pts[s - 1];
 
-		float dir = atan2f(colony->ants[i].pts[0].x - colony->ants[i].target.x,
-			colony->ants[i].pts[0].y - colony->ants[i].target.y);
-
-		// chance to adjust direction
-		if (rand() % 10 == 0)
-		{
-			// only allow adjustments that would stay in range
-			// TODO handle angle wrap around, they spin in circle
-			if (colony->ants[i].dir - 5 <= dir + 10)
-				colony->ants[i].dir -= 5;
-			else if (colony->ants[i].dir + 5 >= dir - 10)
-				colony->ants[i].dir += 5;
-		}
-
-		colony->ants[i].pts[0].x += cosf(TO_RAD(colony->ants[i].dir));
-		colony->ants[i].pts[0].y += sinf(TO_RAD(colony->ants[i].dir));
-
-		float antX = round(colony->ants[i].pts[0].x);
-		float antY = round(colony->ants[i].pts[0].y);
+		ant->pts[0].x += sinf(TO_RAD(ant->dir));
+		ant->pts[0].y += cosf(TO_RAD(ant->dir));
 
 		// check if ant made it to target
-		if (antX == colony->ants[i].target.x && antY == colony->ants[i].target.y)
+		if (pointInCircle(ant->pts[0].x, ant->pts[0].y, ant->target.x, ant->target.y, 1.f))
 		{
 			// set position to stolen
-			setPixel(background, antX, antY, 0xFF000000);
+			setPixel(background, ant->target.x, ant->target.y, 0xFF000000);
 
 			// reset ant and add another
 			deleteAnt(colony, i);
 			addAnt(colony);
 			addAnt(colony);
-			printf("Ant found target\n");
 		}
-
-		// If clicking near ant, squish it
-		if (sft_input_clickState(sft_click_Left) && 
-			pointInCircle(antX, antY, mouse.x, mouse.y, 5.f))
+		// if clicking near ant, squish it
+		else if (sft_input_clickState(sft_click_Left) &&
+			pointInCircle(ant->pts[0].x, ant->pts[0].y, mouse.x, mouse.y, 5.f))
 			deleteAnt(colony, i);
 	}
 }
@@ -214,7 +210,7 @@ static void drawAnts(sft_window* win, Colony* colony)
 	// debug (or just bug) thingy to make ants easier to see
 	for (uint64_t i = 0; i < colony->numAnts; i++)
 	{
-		if (colony->ants[i].deleted)
+		if (colony->ants[i].deleted || !colony->ants[i].hasTarget)
 			continue;
 
 #ifdef _DEBUG
@@ -242,7 +238,7 @@ int main()
 	sft_init();
 
 	sft_window* win = sft_window_open("", 0, 0, 0, 0,
-		sft_flag_fullscreen | sft_flag_passthru | 
+		sft_flag_fullscreen | sft_flag_passthru |
 		sft_flag_syshide | sft_flag_topmost);
 	sft_window_fill(win, 0x00000000);
 	sft_window_display(win);
@@ -266,12 +262,12 @@ int main()
 		// Randomly add an ant
 		if (rand() % 100 == 0)
 			addAnt(&colony);
-		
+
 		updateAnts(win, &colony, background);
 
 		// instead of clearing background, draw stolen pixels 
 		// bc i didn't add alpha blending, so it works
-		sft_window_drawImage(win, background, 0, 0, 
+		sft_window_drawImage(win, background, 0, 0,
 			background->width, background->height, 0, 0);
 
 		drawAnts(win, &colony);
@@ -289,7 +285,7 @@ int main()
 
 		sft_window_display(win);
 
-		sft_sleep(10);
+		//sft_sleep(10);
 	}
 
 	sft_image_delete(background);
