@@ -142,6 +142,15 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 		if (ant->deleted)
 			continue;
 
+				// if clicking near ant, squish it
+		if (sft_input_clickState(sft_click_Left) &&
+			pointInRect(ant->pts[0].x, ant->pts[0].y, mouse.x - SQUISH_RANGE,
+				mouse.y - SQUISH_RANGE, SQUISH_RANGE * 2, SQUISH_RANGE * 2))
+		{
+			deleteAnt(colony, i);
+			continue;
+		}
+
 		// check if ant has a target or another ant took the target
 		if (!ant->hasTarget ||
 			getPixel(background, ant->target.x, ant->target.y) == 0xFF000000)
@@ -196,11 +205,6 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 			addAnt(colony);
 			addAnt(colony);
 		}
-		// if clicking near ant, squish it
-		else if (sft_input_clickState(sft_click_Left) &&
-			pointInRect(ant->pts[0].x, ant->pts[0].y, mouse.x - SQUISH_RANGE, 
-				mouse.y - SQUISH_RANGE, SQUISH_RANGE * 2, SQUISH_RANGE * 2))
-			deleteAnt(colony, i);
 	}
 }
 
