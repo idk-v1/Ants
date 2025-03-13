@@ -18,6 +18,7 @@ typedef struct Ant
 {
 	vec2f pts[ANT_SEGS];
 	vec2f target;
+	vec2f move;
 	float dir;
 	bool deleted;
 	bool hasTarget;
@@ -177,6 +178,8 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 					ant->dir = TO_DEG(atan2f(
 						ant->target.x - ant->pts[0].x,
 						ant->target.y - ant->pts[0].y));
+					ant->move.x = sinf(TO_RAD(ant->dir));
+					ant->move.y = cosf(TO_RAD(ant->dir));
 				}
 			}
 		}
@@ -191,18 +194,18 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 		for (uint64_t s = ANT_SEGS - 1; s > 0; s--)
 			ant->pts[s] = ant->pts[s - 1];
 
-		ant->pts[0].x += sinf(TO_RAD(ant->dir));
-		ant->pts[0].y += cosf(TO_RAD(ant->dir));
+		ant->pts[0].x += ant->move.x;
+		ant->pts[0].y += ant->move.y;
 
-		// check if ant made it to target
+		// check if ant made it to target, overcomplicated bc floating point bad
 		if (pointInCircle(ant->pts[0].x, ant->pts[0].y, ant->target.x, ant->target.y, 1.f))
 		{
 			// set position to stolen
 			setPixel(background, ant->target.x, ant->target.y, 0xFF000000);
 
 			// reset ant and add another
-			deleteAnt(colony, i);
-			addAnt(colony);
+			ant->pts[0] = colony->pt;
+			ant->hasTarget = false;
 			addAnt(colony);
 		}
 	}
