@@ -7,6 +7,7 @@
 #define TO_DEG(rad) (rad / 3.1415f * 180.f)
 
 #define ANT_SEGS 3
+#define SQUISH_RANGE 5
 
 typedef struct vec2f
 {
@@ -145,30 +146,33 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 		if (!ant->hasTarget ||
 			getPixel(background, ant->target.x, ant->target.y) == 0xFF000000)
 		{
+			ant->hasTarget = false;
 			ant->target.x = rand() % background->width;
 			ant->target.y = rand() % background->height;
 
 			// check if target is taken
-			if (getPixel(background, ant->target.x, ant->target.y) != 0xFF000000 && (
-				// surrounding pixel was taken already
-				getPixel(background, ant->target.x + 1, ant->target.y) == 0xFF000000 ||
-				getPixel(background, ant->target.x, ant->target.y + 1) == 0xFF000000 ||
-				getPixel(background, ant->target.x - 1, ant->target.y) == 0xFF000000 ||
-				getPixel(background, ant->target.x, ant->target.y - 1) == 0xFF000000 ||
-				// or target is on edge
-				ant->target.x == 0 || 
-				ant->target.y == 0 ||
-				ant->target.x == background->width - 1 || 
-				ant->target.y == background->height - 1))
+			if (getPixel(background, ant->target.x, ant->target.y) != 0xFF000000)
 			{
-				ant->hasTarget = true;
-				ant->dir = TO_DEG(atan2f(
-					ant->target.x - ant->pts[0].x,
-					ant->target.y - ant->pts[0].y));
+				// surrounding pixel was taken already
+				if (getPixel(background, ant->target.x + 1, ant->target.y) == 0xFF000000 ||
+					getPixel(background, ant->target.x, ant->target.y + 1) == 0xFF000000 ||
+					getPixel(background, ant->target.x - 1, ant->target.y) == 0xFF000000 ||
+					getPixel(background, ant->target.x, ant->target.y - 1) == 0xFF000000 ||
+					// target is on edge
+					ant->target.x == 0 ||
+					ant->target.y == 0 ||
+					ant->target.x == background->width - 1 ||
+					ant->target.y == background->height - 1)
+				{
+					ant->hasTarget = true;
+					ant->dir = TO_DEG(atan2f(
+						ant->target.x - ant->pts[0].x,
+						ant->target.y - ant->pts[0].y));
+				}
 			}
-			else
-				continue; // chose one next time, otherwise infinite loop possible
 		}
+		if (!ant->hasTarget)
+			continue; // chose one next time, otherwise infinite loop possible
 
 		// move the last segment to the next segment,
 		// then the next segment to the next next segment, repeat
@@ -194,40 +198,34 @@ static void updateAnts(sft_window* win, Colony* colony, sft_image* background)
 		}
 		// if clicking near ant, squish it
 		else if (sft_input_clickState(sft_click_Left) &&
-			pointInCircle(ant->pts[0].x, ant->pts[0].y, mouse.x, mouse.y, 5.f))
+			pointInRect(ant->pts[0].x, ant->pts[0].y, mouse.x - SQUISH_RANGE, 
+				mouse.y - SQUISH_RANGE, SQUISH_RANGE * 2, SQUISH_RANGE * 2))
 			deleteAnt(colony, i);
 	}
 }
 
 static void drawAnts(sft_window* win, Colony* colony)
 {
-	static int flash = 0;
-	flash++;
+	static int count = 0;
+#ifdef _DEBUG
+	count++;
+#endif
+
+	uint32_t color = (sft_input_keyState(sft_key_Capslock) && count / 10 % 2)
+		? 0xFFFF0000 : 0xFF000000;
 
 	// draw colony
 	sft_window_drawRect(win, colony->pt.x - 2, colony->pt.y - 2, 5, 5, 0x7F7F3F00);
 
-	// debug (or just bug) thingy to make ants easier to see
 	for (uint64_t i = 0; i < colony->numAnts; i++)
 	{
-		if (colony->ants[i].deleted || !colony->ants[i].hasTarget)
+		Ant* ant = &colony->ants[i];
+
+		if (ant->deleted)
 			continue;
 
-#ifdef _DEBUG
-		if (sft_input_keyState(sft_key_Capslock) && flash / 10 % 2)
-		{
-			for (uint64_t s = 0; s < ANT_SEGS; s++)
-				sft_window_drawRect(win, colony->ants[i].pts[s].x, colony->ants[i].pts[s].y, 1, 1, 0xFFFF0000);
-		}
-		else
-		{
-			for (uint64_t s = 0; s < ANT_SEGS; s++)
-				sft_window_drawRect(win, colony->ants[i].pts[s].x, colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
-		}
-#else
 		for (uint64_t s = 0; s < ANT_SEGS; s++)
-			sft_window_drawRect(win, colony->ants[i].pts[s].x, colony->ants[i].pts[s].y, 1, 1, 0xFF000000);
-#endif
+			sft_window_drawRect(win, ant->pts[s].x, ant->pts[s].y, 1, 1, color);
 	}
 }
 
@@ -254,6 +252,7 @@ int main()
 	{
 		sft_input_update();
 
+		// debug mode only: exit
 #ifdef _DEBUG
 		if (sft_input_keyPressed(sft_key_Escape))
 			break;
@@ -278,14 +277,16 @@ int main()
 		{
 			sft_window_drawTextF(win, 0, 0, 4, 0xFFFF00FF, "%9llu", colony.count);
 
-			// debug squish radius display (actually a circle, just drawn as square)
-			sft_window_drawRect(win, sft_input_mousePos(win).x - 5, sft_input_mousePos(win).y - 5, 10, 10, 0xFFFF0000);
+			// debug squish area display
+			sft_window_drawRect(win, sft_input_mousePos(win).x - SQUISH_RANGE, 
+				sft_input_mousePos(win).y - SQUISH_RANGE, 
+				SQUISH_RANGE * 2, SQUISH_RANGE * 2, 0xFFFF0000);
 		}
 #endif
 
 		sft_window_display(win);
 
-		//sft_sleep(10);
+		sft_sleep(10);
 	}
 
 	sft_image_delete(background);
