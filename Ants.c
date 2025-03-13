@@ -34,7 +34,7 @@ typedef struct Colony
 
 static bool pointInRect(float x, float y, float left, float top, float width, float height)
 {
-	return (x >= left && y >= top && x < width && y < height);
+	return (x >= left && y >= top && x < left + width && y < top + height);
 }
 
 static bool pointInCircle(float x, float y, float cx, float cy, float radius)
